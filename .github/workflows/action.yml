@@ -30,6 +30,6 @@ jobs:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
           build-obfuscate: true
-          go-version: 1.24
+          go-version: 1.23
           node-version: 20.x
-          wails-version: "v2.9.0"
+          wails-version: "v2.10.1"
