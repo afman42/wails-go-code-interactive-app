@@ -2,7 +2,7 @@
 
 ## About
 
-This is the official Wails Svelte-TS template.
+This is refactor Web App to Dekstop App `go-web-code-interactive`
 
 ## Live Development
 
