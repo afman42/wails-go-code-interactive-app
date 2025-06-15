@@ -45,12 +45,14 @@ type ResponseData struct {
 	Data *Data `json:"data"`
 }
 
-func (a *App) CheckFileExecutable(name string) string {
-	_, err := exec.LookPath(name)
-	if err != nil {
-		return ""
+func (a *App) CheckFileExecutable(name []string) (all []string) {
+	for _, v := range name {
+		_, err := exec.LookPath(v)
+		if err == nil {
+			all = append(all,v)
+		}
 	}
-	return name
+	return all
 }
 
 func (a *App) RunFileExecutable(data Data) ResponseData {

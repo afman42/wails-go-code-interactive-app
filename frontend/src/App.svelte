@@ -68,7 +68,7 @@
   let prevLang = $state(langState.value)
   let prevType = $state(langState.type)
   let allLang: string[] = $state([])
-  const init = async (name: string) => await CheckFileExecutable(name)
+  const init = async (arrayFile: string[]) => await CheckFileExecutable(arrayFile)
   // Custom autocompletion for PHP
   function phpCompletions(context: CompletionContext): CompletionResult | null {
     const word = context.matchBefore(/\w*/)
@@ -189,13 +189,7 @@
     ])
   ]
   async function checkAllFileExecutable(arrayFile: string[]) {
-    arrayFile.forEach(async (v: string) => {
-      allLang.push(await init(v).then((result: string) => result))
-      let index = allLang.findIndex((v: string) => v == '')
-      if (index) {
-        allLang.splice(1, index)
-      }
-    })
+    await init(arrayFile).then((result: string[]) => result.forEach((v) => allLang.push(v)))
   }
   // Initialize editor on mount
   onMount(async () => {
@@ -368,7 +362,7 @@
             />Simple Test Question
           </label>
           {#if disabled}
-            --- Proses Code ---
+            <b>--- Proses Code ---</b>
           {/if}
         </div>
       </div>
