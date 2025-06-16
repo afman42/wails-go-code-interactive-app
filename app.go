@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"wails-go-desktop-code-interactive/utils"
 )
@@ -46,10 +47,21 @@ type ResponseData struct {
 }
 
 func (a *App) CheckFileExecutable(name []string) (all []string) {
+	os := runtime.GOOS
 	for _, v := range name {
-		_, err := exec.LookPath(v)
-		if err == nil {
-			all = append(all,v)
+		if os == "windows" {
+			cmd := exec.Command("where", v)
+			err := cmd.Run()
+			if err == nil {
+				all = append(all, v)
+			}
+		}
+		if os == "linux" {
+			cmd := exec.Command("which", v)
+			err := cmd.Run()
+			if err == nil {
+				all = append(all, v)
+			}
 		}
 	}
 	return all
