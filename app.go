@@ -69,6 +69,10 @@ type ResponseData struct {
 func (a *App) CheckFileExecutable(name []string) (all []string) {
 	for _, v := range name {
 		cmd := exec.Command("where", v)
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    true,
+			CreationFlags: 0x08000000,
+		}
 		err := cmd.Run()
 		if err == nil {
 			all = append(all, v)
