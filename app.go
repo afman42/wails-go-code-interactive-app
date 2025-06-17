@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 	"wails-go-desktop-code-interactive/utils"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -88,7 +87,13 @@ func (a *App) CheckFileExecutable(name []string) (all []string) {
 }
 
 func (a *App) RunFileExecutable(data Data) ResponseData {
-	var args string = "-"
+	var (
+		args    string = "-"
+		osCheck string = runtime.GOOS
+		out     string
+		errout  string
+		err     error
+	)
 	data.Txt = strings.TrimSpace(data.Txt)
 	data.Language = strings.TrimSpace(data.Language)
 	data.Tipe = strings.TrimSpace(data.Tipe)
@@ -145,7 +150,7 @@ func (a *App) RunFileExecutable(data Data) ResponseData {
 			data.Txt = data.Txt + utils.TxtJS
 		}
 	}
-	err := os.WriteFile(filename, []byte(data.Txt), 0755)
+	err = os.WriteFile(filename, []byte(data.Txt), 0755)
 	if err != nil {
 		log.Print("unable to write file: ", err)
 		data.Stderr = "Nothing"
@@ -172,13 +177,23 @@ func (a *App) RunFileExecutable(data Data) ResponseData {
 		}
 	}
 
-	out, errout, err := utils.Shellout(data.Language, utils.PathFileTemp(filename))
-	if data.Language == "go" {
-		out, errout, err = utils.Shellout(data.Language, args, utils.PathFileTemp(filename))
+	if osCheck == "windows" {
+		out, errout, err = utils.ShelloutWindows(data.Language, utils.PathFileTemp(filename))
+		if data.Language == "go" {
+			out, errout, err = utils.ShelloutWindows(data.Language, args, utils.PathFileTemp(filename))
+		}
 	}
+	if osCheck == "linux" {
+		out, errout, err = utils.ShelloutLinux(data.Language, utils.PathFileTemp(filename))
+		if data.Language == "go" {
+			out, errout, err = utils.ShelloutLinux(data.Language, args, utils.PathFileTemp(filename))
+		}
+	}
+
 	if err != nil {
 		log.Printf("error shell: %v\n", err)
 	}
+
 	fmt.Println("--- stdout ---")
 	fmt.Println(out)
 	fmt.Println("--- stderr ---")
