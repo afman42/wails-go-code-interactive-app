@@ -1,3 +1,5 @@
+//go:build linux
+
 package utils
 
 import (
@@ -5,7 +7,7 @@ import (
 	"os/exec"
 )
 
-func ShelloutLinux(language string, args ...string) (string, string, error) {
+func Shellout(language string, args ...string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(language, args...)
