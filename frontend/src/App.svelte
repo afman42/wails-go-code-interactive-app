@@ -288,10 +288,13 @@
           toast.success('Success Response', 1000)
         }
       }
-    } catch (error: unknown) {
-      const parseMessage = JSON.parse(error as string)
-      if (parseMessage.statusCode == 400)
-        toast.error(parseMessage.message, 1000)
+      if (result.meta?.status_code == 400) {
+        toast.warning(result.meta?.message,3000)
+        disabled = false
+      }
+    } catch (error: any) {
+      if (error.meta.status_code == 400)
+        toast.error(error.meta.message, 1000)
       disabled = false
       stdout = 'Nothing'
       stderr = 'Nothing'
