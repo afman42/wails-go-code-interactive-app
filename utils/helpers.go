@@ -1,40 +1,19 @@
 package utils
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"math/rand"
 	"path"
 	"path/filepath"
-	"runtime"
-	"syscall"
 
 	"os"
-	"os/exec"
 	"time"
 )
 
 var seededRand *rand.Rand = rand.New(
 	rand.NewSource(time.Now().UnixNano()))
-
-func Shellout(language string, args ...string) (string, string, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(language, args...)
-	if runtime.GOOS == "windows" && runtime.GOOS != "linux" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			HideWindow:    true,
-			CreationFlags: 0x08000000,
-		}
-	}
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	return stdout.String(), stderr.String(), err
-}
 
 func StringWithCharset(length int) string {
 	charset := "abcdefgABCDEFG123456"
