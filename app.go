@@ -1,3 +1,5 @@
+//go:build windows
+
 package main
 
 import (
@@ -7,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"wails-go-desktop-code-interactive/utils"
 
@@ -66,34 +67,18 @@ type ResponseData struct {
 }
 
 func (a *App) CheckFileExecutable(name []string) (all []string) {
-	os := runtime.GOOS
 	for _, v := range name {
-		if os == "windows" {
-			cmd := exec.Command("where", v)
-			err := cmd.Run()
-			if err == nil {
-				all = append(all, v)
-			}
-		}
-		if os == "linux" {
-			cmd := exec.Command("which", v)
-			err := cmd.Run()
-			if err == nil {
-				all = append(all, v)
-			}
+		cmd := exec.Command("where", v)
+		err := cmd.Run()
+		if err == nil {
+			all = append(all, v)
 		}
 	}
 	return all
 }
 
 func (a *App) RunFileExecutable(data Data) ResponseData {
-	var (
-		args    string = "-"
-		osCheck string = runtime.GOOS
-		out     string
-		errout  string
-		err     error
-	)
+	var args string = "-"
 	data.Txt = strings.TrimSpace(data.Txt)
 	data.Language = strings.TrimSpace(data.Language)
 	data.Tipe = strings.TrimSpace(data.Tipe)
@@ -150,7 +135,7 @@ func (a *App) RunFileExecutable(data Data) ResponseData {
 			data.Txt = data.Txt + utils.TxtJS
 		}
 	}
-	err = os.WriteFile(filename, []byte(data.Txt), 0755)
+	err := os.WriteFile(filename, []byte(data.Txt), 0755)
 	if err != nil {
 		log.Print("unable to write file: ", err)
 		data.Stderr = "Nothing"
@@ -177,17 +162,9 @@ func (a *App) RunFileExecutable(data Data) ResponseData {
 		}
 	}
 
-	if osCheck == "windows" {
-		out, errout, err = utils.ShelloutWindows(data.Language, utils.PathFileTemp(filename))
-		if data.Language == "go" {
-			out, errout, err = utils.ShelloutWindows(data.Language, args, utils.PathFileTemp(filename))
-		}
-	}
-	if osCheck == "linux" {
-		out, errout, err = utils.ShelloutLinux(data.Language, utils.PathFileTemp(filename))
-		if data.Language == "go" {
-			out, errout, err = utils.ShelloutLinux(data.Language, args, utils.PathFileTemp(filename))
-		}
+	out, errout, err := utils.Shellout(data.Language, utils.PathFileTemp(filename))
+	if data.Language == "go" {
+		out, errout, err = utils.Shellout(data.Language, args, utils.PathFileTemp(filename))
 	}
 
 	if err != nil {

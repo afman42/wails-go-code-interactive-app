@@ -8,7 +8,7 @@ import (
 	"syscall"
 )
 
-func ShelloutWindows(language string, args ...string) (string, string, error) {
+func Shellout(language string, args ...string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(language, args...)
