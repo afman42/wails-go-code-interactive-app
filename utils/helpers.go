@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"path"
 	"path/filepath"
+	"runtime"
+	"syscall"
 
 	"os"
 	"os/exec"
@@ -23,6 +25,13 @@ func Shellout(language string, args ...string) (string, string, error) {
 	cmd := exec.Command(language, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    true,
+			CreationFlags: 0x08000000,
+		}
+	}
 	err := cmd.Run()
 	return stdout.String(), stderr.String(), err
 }

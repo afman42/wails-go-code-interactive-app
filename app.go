@@ -9,7 +9,16 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
 	"wails-go-desktop-code-interactive/utils"
+
+	"github.com/wailsapp/wails/v2/pkg/options"
+	ru "github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+var (
+	wailsContext       *context.Context
+	secondInstanceArgs []string
 )
 
 // App struct
@@ -26,6 +35,17 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	wailsContext = &ctx
+}
+
+func (a *App) onSecondInstanceLaunch(secondInstanceData options.SecondInstanceData) {
+	secondInstanceArgs = secondInstanceData.Args
+
+	println("user opened second instance", strings.Join(secondInstanceData.Args, ","))
+	println("user opened second from", secondInstanceData.WorkingDirectory)
+	ru.WindowUnminimise(*wailsContext)
+	ru.Show(*wailsContext)
+	go ru.EventsEmit(*wailsContext, "launchArgs", secondInstanceArgs)
 }
 
 type Data struct {
@@ -51,6 +71,10 @@ func (a *App) CheckFileExecutable(name []string) (all []string) {
 	for _, v := range name {
 		if os == "windows" {
 			cmd := exec.Command("where", v)
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				HideWindow:    true,
+				CreationFlags: 0x08000000,
+			}
 			err := cmd.Run()
 			if err == nil {
 				all = append(all, v)
