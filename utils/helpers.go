@@ -23,15 +23,15 @@ func Shellout(language string, args ...string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(language, args...)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && runtime.GOOS != "linux" {
 		cmd.SysProcAttr = &syscall.SysProcAttr{
 			HideWindow:    true,
 			CreationFlags: 0x08000000,
 		}
 	}
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
 	err := cmd.Run()
 	return stdout.String(), stderr.String(), err
 }
