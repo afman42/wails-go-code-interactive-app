@@ -71,10 +71,6 @@ func (a *App) CheckFileExecutable(name []string) (all []string) {
 	for _, v := range name {
 		if os == "windows" {
 			cmd := exec.Command("where", v)
-			cmd.SysProcAttr = &syscall.SysProcAttr{
-				HideWindow:    true,
-				CreationFlags: 0x08000000,
-			}
 			err := cmd.Run()
 			if err == nil {
 				all = append(all, v)
