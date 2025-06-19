@@ -28,9 +28,7 @@
   style="background: {themes[propToast.type]};flex: '0 0 auto';"
   out:slide={{ axis: 'y' }}
 >
-  <div
-    class="p-3 block text-white font-medium text-xl min-sm:text-xs min-sm:font-normal sm:text-sm sm:font-normal"
-  >
+  <div class="p-3 block text-white font-medium text-xl">
     {propToast.message}
   </div>
 </div>
