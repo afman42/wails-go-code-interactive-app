@@ -68,7 +68,8 @@
   let prevLang = $state(langState.value)
   let prevType = $state(langState.type)
   let allLang: string[] = $state([])
-  const init = async (arrayFile: string[]) => await CheckFileExecutable(arrayFile)
+  const init = async (arrayFile: string[]) =>
+    await CheckFileExecutable(arrayFile)
   // Custom autocompletion for PHP
   function phpCompletions(context: CompletionContext): CompletionResult | null {
     const word = context.matchBefore(/\w*/)
@@ -189,7 +190,9 @@
     ])
   ]
   async function checkAllFileExecutable(arrayFile: string[]) {
-    await init(arrayFile).then((result: string[]) => result.forEach((v) => allLang.push(v)))
+    await init(arrayFile).then((result: string[]) =>
+      result.forEach((v) => allLang.push(v))
+    )
   }
   // Initialize editor on mount
   onMount(async () => {
@@ -289,12 +292,12 @@
         }
       }
       if (result.meta?.status_code == 400) {
-        toast.warning(result.meta?.message,3000)
+        toast.warning(result.meta?.message, 3000)
         disabled = false
       }
     } catch (error: any) {
-      if (error.meta.status_code == 400)
-        toast.error(error.meta.message, 1000)
+      toast.error(error, 5000)
+      if (error.meta.status_code == 400) toast.error(error.meta.message, 1000)
       disabled = false
       stdout = 'Nothing'
       stderr = 'Nothing'
@@ -320,8 +323,10 @@
 
 <div class="flex flex-col">
   <div class="flex flex-col m-4 h-full">
-    <div class="flex w-full border-black border-2 border-solid mb-2 h-80">
-      <div bind:this={editorContainer} class="w-full h-full"></div>
+    <div
+      class="flex w-full border-black border-2 border-solid mb-2 h-80 overflow-y-scroll overflow-x-hidden"
+    >
+      <div bind:this={editorContainer} class="w-full h-ful"></div>
     </div>
     <div class="flex items-center">
       <button
@@ -390,7 +395,7 @@
         >
       {:else}
         {#if langState.type == 'repl'}
-          <h6 class="">StdOut</h6>
+          <h6>StdOut</h6>
           <blockquote class="border-l-4 border-gray-500 my-2 py-4 pl-4">
             {stdout}
           </blockquote>
@@ -405,7 +410,7 @@
             change after int to string
           </blockquote>
         {/if}
-        <h6 class="min-sm:text-sm md:text-sm">StdErr</h6>
+        <h6>StdErr</h6>
         <blockquote class="border-l-4 border-gray-500 my-2 py-4 pl-4">
           {stderr}
         </blockquote>
