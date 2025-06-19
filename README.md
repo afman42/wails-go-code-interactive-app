@@ -18,5 +18,5 @@ To build a redistributable, production mode package, use `wails build`.
 - Windows
   - Need Webview Microsoft Edge
 - UI
-  - [] PHP Not Tested
-  - [] Width CodeMirror Not Fixed
+  - [x] PHP Tested
+  - [x] Width CodeMirror Not Fixed
