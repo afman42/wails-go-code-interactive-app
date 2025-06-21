@@ -4,4 +4,4 @@ import {main} from '../models';
 
 export function CheckFileExecutable(arg1:Array<string>):Promise<Array<string>>;
 
-export function RunFileExecutable(arg1:main.Data):Promise<main.ResponseData>;
+export function RunFileExecutable(arg1:main.Data):Promise<main.Data>;
