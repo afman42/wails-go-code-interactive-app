@@ -262,45 +262,33 @@
 
     try {
       const result = await RunFileExecutable(data)
-      if (result.meta == undefined || result.data == undefined) {
+
+      if (result == undefined) {
         disabled = false
         toast.warning('Something Went Wrong', 3000)
         return
       }
-      if (result.meta?.status_code == 200) {
-        disabled = false
-        stderr =
-          result.data?.errout.trim().length > 0
-            ? result.data?.errout
-            : 'Nothing'
+      disabled = false
+      stderr = result.errout.trim().length > 0 ? result.errout : 'Nothing'
+      stdout =
+        result.out.trim().length > 0 && stderr == 'Nothing'
+          ? result.out
+          : 'Nothing'
+      if (langState.type == 'stq') {
+        stderr = result.errout.trim().length > 0 ? result.errout : 'Nothing'
         stdout =
-          result.data?.out.trim().length > 0 && stderr == 'Nothing'
-            ? result.data?.out
+          result.out.trim().length > 0
+            ? JSON.parse(result.out.trim())
             : 'Nothing'
-        if (langState.type == 'stq') {
-          stderr =
-            result.data?.errout.trim().length > 0
-              ? result.data?.errout
-              : 'Nothing'
-          stdout =
-            result.data?.out.trim().length > 0
-              ? JSON.parse(result.data?.out.trim())
-              : 'Nothing'
-        }
-        if (stderr != 'Nothing') {
-          toast.warning('Something Went Wrong', 1000)
-        }
-        if (stdout != 'Nothing') {
-          toast.success('Success Response', 1000)
-        }
       }
-      if (result.meta?.status_code == 400) {
-        toast.warning(result.meta?.message, 3000)
-        disabled = false
+      if (stderr != 'Nothing') {
+        toast.warning('Something Went Wrong', 1000)
+      }
+      if (stdout != 'Nothing') {
+        toast.success('Success Response', 1000)
       }
     } catch (error: any) {
       toast.error(error, 5000)
-      if (error.meta.status_code == 400) toast.error(error.meta.message, 1000)
       disabled = false
       stdout = 'Nothing'
       stderr = 'Nothing'
@@ -380,7 +368,7 @@
     </div>
   </div>
 
-  <div class="flex flex-col ml-4">
+  <div class="flex flex-col mx-4">
     <div class="flex mt-3 flex-col w-full">
       {#if allLang.length == 0}
         <h3>Please Add Golang,Node JS,PHP Installation</h3>
@@ -404,10 +392,10 @@
           </blockquote>
         {/if}
         {#if langState.type == 'stq'}
-          <h6 class="">Simple Test Question : change integer to string</h6>
-          <h6 class="">Result</h6>
+          <h6>Simple Test Question : change integer to string</h6>
+          <h6>Result</h6>
           <blockquote
-            class="flex gap-1 flex-start border-l-4 border-gray-500 my-2 py-4 pl-4"
+            class="flex gap-1 flex-start border-l-4 border-gray-500 my-2 py-4 pl-4 items-center"
           >
             <input type="checkbox" value="stq1" checked={!stdout} disabled /> Check
             change after int to string

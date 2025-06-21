@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -57,16 +56,6 @@ type Data struct {
 	Tipe     string `json:"type"`
 }
 
-type Meta struct {
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message"`
-}
-
-type ResponseData struct {
-	Meta *Meta `json:"meta"`
-	Data *Data `json:"data"`
-}
-
 func (a *App) CheckFileExecutable(name []string) (all []string) {
 	for _, v := range name {
 		cmd := exec.Command("where", v)
@@ -82,45 +71,23 @@ func (a *App) CheckFileExecutable(name []string) (all []string) {
 	return all
 }
 
-func (a *App) RunFileExecutable(data Data) ResponseData {
+func (a *App) RunFileExecutable(data Data) (*Data, error) {
 	var args string = "-"
 	data.Txt = strings.TrimSpace(data.Txt)
 	data.Language = strings.TrimSpace(data.Language)
 	data.Tipe = strings.TrimSpace(data.Tipe)
 	if data.Language == "" || data.Txt == "" || data.Tipe == "" {
-		data.Stdout = "Nothing"
-		data.Stderr = "Nothing"
-		return ResponseData{
-			Meta: &Meta{
-				StatusCode: http.StatusBadRequest,
-				Message:    "Something Went Wrong, Check Language is exist",
-			},
-			Data: &data,
-		}
+		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("Something went wrong, when data empty")
+	}
 
-	}
 	if !utils.CheckIsNotData([]string{"php", "node", "go"}, data.Language) {
-		data.Stdout = "Nothing"
-		data.Stderr = "Nothing"
-		return ResponseData{
-			Meta: &Meta{
-				StatusCode: http.StatusBadRequest,
-				Message:    "Something Went Wrong, Check Language is exist",
-			},
-			Data: &data,
-		}
+		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("Something went wrong, check language is empty")
 	}
+
 	if !utils.CheckIsNotData([]string{"repl", "stq"}, data.Tipe) {
-		data.Stdout = "Nothing"
-		data.Stderr = "Nothing"
-		return ResponseData{
-			Meta: &Meta{
-				StatusCode: http.StatusBadRequest,
-				Message:    "Something Went Wrong, Check Type is exist",
-			},
-			Data: &data,
-		}
+		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("Something Went Wrong, Check Type is exist")
 	}
+
 	filename := "index-" + utils.StringWithCharset(5) + ".js"
 	if data.Language == "php" {
 		filename = "index-" + utils.StringWithCharset(5) + ".php"
@@ -140,31 +107,16 @@ func (a *App) RunFileExecutable(data Data) ResponseData {
 			data.Txt = data.Txt + utils.TxtJS
 		}
 	}
+
 	err := os.WriteFile(filename, []byte(data.Txt), 0755)
 	if err != nil {
 		log.Print("unable to write file: ", err)
-		data.Stderr = "Nothing"
-		data.Stdout = "Nothing"
-		return ResponseData{
-			Meta: &Meta{
-				StatusCode: http.StatusBadRequest,
-				Message:    "Something Went Wrong",
-			},
-			Data: &data,
-		}
+		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("Something went wrong, unable to write file")
 	}
 	err = utils.MoveFile(filename, utils.PathFileTemp(filename))
 	if err != nil {
 		log.Print("error movefile: ", err)
-		data.Stderr = "Nothing"
-		data.Stdout = "Nothing"
-		return ResponseData{
-			Meta: &Meta{
-				StatusCode: http.StatusBadRequest,
-				Message:    "Something Went Wrong",
-			},
-			Data: &data,
-		}
+		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("Something went wrong, unable move file")
 	}
 
 	out, errout, err := utils.Shellout(data.Language, utils.PathFileTemp(filename))
@@ -182,11 +134,5 @@ func (a *App) RunFileExecutable(data Data) ResponseData {
 	fmt.Println(errout)
 	data.Stderr = errout
 	data.Stdout = out
-	return ResponseData{
-		Meta: &Meta{
-			StatusCode: http.StatusOK,
-			Message:    "Success",
-		},
-		Data: &data,
-	}
+	return &data, nil
 }
