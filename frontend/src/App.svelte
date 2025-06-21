@@ -191,7 +191,10 @@
   ]
   async function checkAllFileExecutable(arrayFile: string[]) {
     await init(arrayFile).then((result: string[]) =>
-      result.forEach((v) => allLang.push(v))
+      result.forEach((v) => {
+        allLang.push(v)
+        if (!v.includes(langState.value)) langState.value = result[0]
+      })
     )
   }
   // Initialize editor on mount
