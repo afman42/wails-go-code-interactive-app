@@ -3,11 +3,16 @@ import { render, screen, waitFor } from '@testing-library/svelte/svelte5'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App.svelte'
 
-const checkFileExecutableMock = vi.fn()
+const listLanguageAvailabilityMock = vi.fn()
+const listBundledRuntimesMock = vi.fn()
+const runFileExecutableMock = vi.fn()
 
 vi.mock('../wailsjs/go/main/App.js', () => ({
-  CheckFileExecutable: (...args: unknown[]) => checkFileExecutableMock(...args),
-  RunFileExecutable: vi.fn()
+  ListLanguageAvailability: (...args: unknown[]) =>
+    listLanguageAvailabilityMock(...args),
+  ListBundledRuntimes: (...args: unknown[]) =>
+    listBundledRuntimesMock(...args),
+  RunFileExecutable: (...args: unknown[]) => runFileExecutableMock(...args)
 }))
 
 vi.mock('../wailsjs/go/models', () => ({
@@ -23,13 +28,21 @@ vi.mock('../wailsjs/go/models', () => ({
 }))
 
 afterEach(() => {
-  checkFileExecutableMock.mockReset()
+  listLanguageAvailabilityMock.mockReset()
+  listBundledRuntimesMock.mockReset()
+  runFileExecutableMock.mockReset()
   localStorage.clear()
 })
 
 describe('App', () => {
   it('renders setup prompt when no executables are found', async () => {
-    checkFileExecutableMock.mockResolvedValueOnce([])
+    listLanguageAvailabilityMock.mockResolvedValueOnce({
+      system: [],
+      bundled: []
+    })
+    listLanguageAvailabilityMock.mockResolvedValue({ system: [], bundled: [] })
+    listBundledRuntimesMock.mockResolvedValueOnce([])
+    listBundledRuntimesMock.mockResolvedValue([])
 
     render(App)
 
@@ -41,7 +54,16 @@ describe('App', () => {
   })
 
   it('lists detected runtimes returned from backend', async () => {
-    checkFileExecutableMock.mockResolvedValueOnce(['node', 'go'])
+    listLanguageAvailabilityMock.mockResolvedValueOnce({
+      system: ['node', 'go'],
+      bundled: []
+    })
+    listLanguageAvailabilityMock.mockResolvedValue({
+      system: ['node', 'go'],
+      bundled: []
+    })
+    listBundledRuntimesMock.mockResolvedValueOnce([])
+    listBundledRuntimesMock.mockResolvedValue([])
 
     render(App)
 

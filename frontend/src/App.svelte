@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { CheckFileExecutable } from '../wailsjs/go/main/App.js'
-  import { RunFileExecutable } from '../wailsjs/go/main/App.js'
+  import {
+    ListBundledRuntimes,
+    ListLanguageAvailability,
+    RunFileExecutable
+  } from '../wailsjs/go/main/App.js'
   import { main } from '../wailsjs/go/models'
   //Component
   import ToasterContainer from './component/ToasterContainer.svelte'
@@ -53,6 +56,15 @@
   let stdout: string = $state('Nothing')
   let stderr: string = $state('Nothing')
   let disabled: boolean = $state(false)
+  let execMode: string = $state('default')
+  let preferBundled: boolean = $state(false)
+  let bundledRuntimes: string[] = $state([])
+  let selectedRuntime: string = $state('')
+  let customExecutable: string = $state('')
+  let customWorkingDir: string = $state('')
+  let systemLangs: string[] = $state([])
+  let bundledLangs: string[] = $state([])
+  let displayedLangs: string[] = $state([])
   const toast = useToast()
   // Language configuration map
   const languageConfigs = {
@@ -60,6 +72,7 @@
     php: php(),
     go: go()
   } as Record<string, LanguageSupport>
+  const supportedLanguages = ['node', 'php', 'go']
   // Reactive states
   let view: EditorView | null = null
   let editorContainer: HTMLDivElement
@@ -83,16 +96,62 @@
     return []
   }
 
+  const toUniqueList = (values: string[]) => {
+    return [...new Set(values.map((value) => (typeof value === 'string' ? value.trim() : '')).filter((value) => value.length > 0))]
+  }
+
   let arrLang: string[] = $state(loadStoredLangs())
 
   const persistLangs = (values: string[]) => {
-    arrLang = [...values]
+    const unique = toUniqueList(values)
+    arrLang = [...unique]
     window.localStorage.setItem('allLang', JSON.stringify(arrLang))
   }
 
+  const updateDisplayedLanguages = () => {
+    let next: string[] = []
+    if (execMode === 'bundled') {
+      next = bundledLangs
+    } else if (execMode === 'custom') {
+      next = systemLangs
+    } else {
+      next = systemLangs.length > 0 ? systemLangs : bundledLangs
+    }
+    const unique = toUniqueList(next)
+    displayedLangs = unique
+    if (unique.length > 0 && !unique.includes(langState.value)) {
+      langState.value = unique[0]
+    }
+  }
+
   const init = async (arrayFile: string[]) => {
+    let system: string[] = []
+    let bundled: string[] = []
     try {
-      const result = await CheckFileExecutable(arrayFile)
+      const availability = await ListLanguageAvailability(arrayFile)
+      system = toUniqueList(availability?.system ?? [])
+      bundled = toUniqueList(availability?.bundled ?? [])
+    } catch {
+      system = [...systemLangs]
+      bundled = [...bundledLangs]
+    }
+
+    systemLangs = [...system]
+    bundledLangs = [...bundled]
+
+    const merged = toUniqueList([...system, ...bundled])
+    persistLangs(merged)
+    if (merged.length > 0 && !merged.includes(langState.value)) {
+      langState.value = merged[0]
+    }
+
+    await refreshBundledRuntimes()
+    updateDisplayedLanguages()
+  }
+
+  const refreshBundledRuntimes = async () => {
+    try {
+      const result = await ListBundledRuntimes()
       const filtered = result
         .map((value) => value?.trim())
         .filter(
@@ -100,13 +159,49 @@
             typeof value === 'string' && value.length > 0
         )
       const unique = [...new Set(filtered)]
-      if (unique.length > 0 && !unique.includes(langState.value)) {
-        langState.value = unique[0]
+      bundledRuntimes = unique
+      if (unique.length === 0) {
+        selectedRuntime = ''
+      } else if (!unique.includes(selectedRuntime)) {
+        selectedRuntime = unique[0]
       }
-      persistLangs(unique.length > 0 ? unique : arrLang)
     } catch {
-      persistLangs(arrLang)
+      bundledRuntimes = []
+      selectedRuntime = ''
     }
+  }
+
+  function onChangeExecMode(event: Event) {
+    const value = (event.target as HTMLInputElement).value
+    execMode = value
+    if (value === 'bundled') {
+      preferBundled = false
+      if (bundledLangs.length === 0) {
+        void init(supportedLanguages)
+      } else {
+        void refreshBundledRuntimes()
+      }
+    } else if (value === 'custom') {
+      preferBundled = false
+    }
+    updateDisplayedLanguages()
+  }
+
+  function onTogglePreferBundled(event: Event) {
+    preferBundled = (event.target as HTMLInputElement).checked
+    updateDisplayedLanguages()
+  }
+
+  function onSelectBundledRuntime(event: Event) {
+    selectedRuntime = (event.target as HTMLSelectElement).value
+  }
+
+  function onInputCustomExecutable(event: Event) {
+    customExecutable = (event.target as HTMLInputElement).value
+  }
+
+  function onInputCustomWorkingDir(event: Event) {
+    customWorkingDir = (event.target as HTMLInputElement).value
   }
   // Custom autocompletion for PHP
   function phpCompletions(context: CompletionContext): CompletionResult | null {
@@ -229,7 +324,7 @@
   ]
   // Initialize editor on mount
   onMount(async () => {
-    await init(['node', 'php', 'go'])
+    await init(supportedLanguages)
     currentLang = languageConfigs[langState.value] || languageConfigs.node
     const initialState = EditorState.create({
       doc: langState.sampleDataLang[langState.type][langState.value] || '',
@@ -280,7 +375,7 @@
     }
   })
   async function send() {
-    if (arrLang.length == 0) {
+    if (displayedLangs.length == 0) {
       toast.warning('Something Went Wrong', 4000)
       return
     }
@@ -290,6 +385,43 @@
     data.txt = langState.sampleDataLang[langState.type][langState.value]
     data.lang = langState.value
     data.type = langState.type
+
+    const normalizedMode = execMode.trim().toLowerCase()
+    const trimmedRuntime = selectedRuntime.trim()
+    const trimmedExecutable = customExecutable.trim()
+    const trimmedWorkingDir = customWorkingDir.trim()
+
+    if (normalizedMode === 'bundled' && trimmedRuntime.length === 0) {
+      disabled = false
+      toast.warning('Select a bundled runtime before running the code', 4000)
+      return
+    }
+
+    if (normalizedMode === 'custom' && trimmedExecutable.length === 0) {
+      disabled = false
+      toast.warning('Provide the custom executable path before running the code', 4000)
+      return
+    }
+
+    if (normalizedMode === 'bundled') {
+      data.execMode = 'bundled'
+      data.bundledRuntime = trimmedRuntime
+      data.preferBundled = false
+      data.customExecutable = ''
+      data.customWorkingDir = ''
+    } else if (normalizedMode === 'custom') {
+      data.execMode = 'custom'
+      data.customExecutable = trimmedExecutable
+      data.customWorkingDir = trimmedWorkingDir
+      data.preferBundled = false
+      data.bundledRuntime = ''
+    } else {
+      data.execMode = 'default'
+      data.preferBundled = preferBundled
+      data.bundledRuntime = trimmedRuntime
+      data.customExecutable = ''
+      data.customWorkingDir = ''
+    }
 
     try {
       const result = await RunFileExecutable(data)
@@ -359,7 +491,7 @@
       >
       <div class="flex gap-1 w-full">
         <div class="flex gap-2 items-center w-full">
-          {#each arrLang as lang}
+          {#each displayedLangs as lang}
             <label for={lang} class="flex items-center">
               <input
                 type="radio"
@@ -395,6 +527,107 @@
             <b>--- Process Code ---</b>
           {/if}
         </div>
+        <div class="flex flex-col gap-2 w-full mt-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-semibold">Execution mode:</span>
+            <label class="flex items-center gap-1">
+              <input
+                type="radio"
+                value="default"
+                class="mr-0.5"
+                onchange={onChangeExecMode}
+                checked={execMode == 'default'}
+              />Default
+            </label>
+            <label class="flex items-center gap-1">
+              <input
+                type="radio"
+                value="bundled"
+                class="mr-0.5"
+                onchange={onChangeExecMode}
+                checked={execMode == 'bundled'}
+              />Bundled
+            </label>
+            <label class="flex items-center gap-1">
+              <input
+                type="radio"
+                value="custom"
+                class="mr-0.5"
+                onchange={onChangeExecMode}
+                checked={execMode == 'custom'}
+              />Custom
+            </label>
+            {#if execMode == 'default'}
+              <label class="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  onchange={onTogglePreferBundled}
+                  checked={preferBundled}
+                />
+                Prefer bundled fallback
+              </label>
+            {/if}
+          </div>
+          {#if execMode == 'bundled'}
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="font-medium" for="bundled-runtime">Runtime:</label>
+              <select
+                class="border rounded px-2 py-1"
+                onchange={onSelectBundledRuntime}
+                id="bundled-runtime"
+              >
+                <option value="" selected={selectedRuntime == ''} disabled>
+                  Select runtime
+                </option>
+                {#each bundledRuntimes as runtime}
+                  <option value={runtime} selected={runtime == selectedRuntime}>
+                    {runtime}
+                  </option>
+                {/each}
+              </select>
+              <button
+                class="bg-blue-500 text-white px-2 py-1 rounded"
+                type="button"
+                onclick={async (e) => {
+                  e.preventDefault()
+                  await init(supportedLanguages)
+                  toast.info('Bundled runtimes refreshed', 1500)
+                }}
+              >
+                Refresh
+              </button>
+            </div>
+            {#if bundledRuntimes.length == 0}
+              <p class="text-sm text-red-600">
+                No bundled runtimes detected for this build.
+              </p>
+            {/if}
+          {/if}
+          {#if execMode == 'custom'}
+            <div class="flex flex-col gap-2">
+              <label class="flex flex-col">
+                <span class="text-sm font-medium">Executable</span>
+                <input
+                  type="text"
+                  class="border rounded px-2 py-1"
+                  placeholder="Absolute or relative executable path"
+                  value={customExecutable}
+                  oninput={onInputCustomExecutable}
+                />
+              </label>
+              <label class="flex flex-col">
+                <span class="text-sm font-medium">Working directory (optional)</span>
+                <input
+                  type="text"
+                  class="border rounded px-2 py-1"
+                  placeholder="Working directory"
+                  value={customWorkingDir}
+                  oninput={onInputCustomWorkingDir}
+                />
+              </label>
+            </div>
+          {/if}
+        </div>
       </div>
     </div>
   </div>
@@ -408,7 +641,7 @@
           type="button"
           onclick={async (e) => {
             e.preventDefault()
-            await init(['node', 'php', 'go'])
+            await init(supportedLanguages)
             toast.info(
               `Installation executable ${arrLang.length == 0 ? `none` : arrLang.join(' , ')}`,
               1000

@@ -4,4 +4,8 @@ import {main} from '../models';
 
 export function CheckFileExecutable(arg1:Array<string>):Promise<Array<string>>;
 
+export function ListBundledRuntimes():Promise<Array<string>>;
+
+export function ListLanguageAvailability(arg1:Array<string>):Promise<main.LanguageAvailability>;
+
 export function RunFileExecutable(arg1:main.Data):Promise<main.Data>;

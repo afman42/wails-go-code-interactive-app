@@ -6,6 +6,14 @@ export function CheckFileExecutable(arg1) {
   return window['go']['main']['App']['CheckFileExecutable'](arg1);
 }
 
+export function ListBundledRuntimes() {
+  return window['go']['main']['App']['ListBundledRuntimes']();
+}
+
+export function ListLanguageAvailability(arg1) {
+  return window['go']['main']['App']['ListLanguageAvailability'](arg1);
+}
+
 export function RunFileExecutable(arg1) {
   return window['go']['main']['App']['RunFileExecutable'](arg1);
 }

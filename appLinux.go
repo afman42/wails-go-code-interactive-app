@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"wails-go-desktop-code-interactive/utils"
 
@@ -22,7 +21,8 @@ var (
 
 // App struct
 type App struct {
-	ctx context.Context
+	ctx         context.Context
+	runtimeRoot string
 }
 
 // NewApp creates a new App application struct
@@ -35,6 +35,9 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	wailsContext = &ctx
+	if err := a.prepareRuntimeBundles(); err != nil {
+		log.Printf("failed to prepare bundled runtimes: %v", err)
+	}
 }
 
 func (a *App) onSecondInstanceLaunch(secondInstanceData options.SecondInstanceData) {
@@ -48,22 +51,22 @@ func (a *App) onSecondInstanceLaunch(secondInstanceData options.SecondInstanceDa
 }
 
 type Data struct {
-	Txt      string `json:"txt"`
-	Stdout   string `json:"out"`
-	Stderr   string `json:"errout"`
-	Language string `json:"lang"`
-	Tipe     string `json:"type"`
+	Txt              string `json:"txt"`
+	Stdout           string `json:"out"`
+	Stderr           string `json:"errout"`
+	Language         string `json:"lang"`
+	Tipe             string `json:"type"`
+	ExecMode         string `json:"execMode"`
+	BundledRuntime   string `json:"bundledRuntime"`
+	CustomExecutable string `json:"customExecutable"`
+	CustomWorkingDir string `json:"customWorkingDir"`
+	PreferBundled    bool   `json:"preferBundled"`
 }
 
 func (a *App) CheckFileExecutable(name []string) (all []string) {
-	for _, v := range name {
-		cmd := exec.Command("which", v)
-		_, err := cmd.Output()
-		if err == nil {
-			all = append(all, v)
-		}
-	}
-	return all
+	availability := a.ListLanguageAvailability(name)
+	combined := append(availability.System, availability.Bundled...)
+	return dedupeStrings(combined)
 }
 
 func (a *App) RunFileExecutable(data Data) (*Data, error) {
@@ -71,6 +74,38 @@ func (a *App) RunFileExecutable(data Data) (*Data, error) {
 	data.Txt = strings.TrimSpace(data.Txt)
 	data.Language = strings.TrimSpace(data.Language)
 	data.Tipe = strings.TrimSpace(data.Tipe)
+	data.ExecMode = strings.ToLower(strings.TrimSpace(data.ExecMode))
+	data.BundledRuntime = strings.TrimSpace(data.BundledRuntime)
+	data.CustomExecutable = strings.TrimSpace(data.CustomExecutable)
+	data.CustomWorkingDir = strings.TrimSpace(data.CustomWorkingDir)
+
+	switch data.ExecMode {
+	case "bundled", "custom":
+		// keep as-is
+	case "default", "system", "":
+		data.ExecMode = "default"
+	default:
+		data.ExecMode = "default"
+	}
+
+	if data.ExecMode == "custom" && data.CustomExecutable == "" {
+		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("custom executable path is required when execMode is custom")
+	}
+
+	if data.ExecMode == "bundled" {
+		if data.BundledRuntime == "" {
+			if runtimes := a.ListBundledRuntimes(); len(runtimes) > 0 {
+				data.BundledRuntime = runtimes[0]
+			} else {
+				return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("bundled runtime requested but none are available")
+			}
+		}
+		data.PreferBundled = false
+	}
+
+	if data.ExecMode == "custom" {
+		data.PreferBundled = false
+	}
 	if data.Language == "" || data.Txt == "" || data.Tipe == "" {
 		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("Something went wrong, when data empty")
 	}
@@ -114,19 +149,26 @@ func (a *App) RunFileExecutable(data Data) (*Data, error) {
 		return &Data{Stdout: "Nothing", Stderr: "Nothing"}, fmt.Errorf("Something went wrong, unable move file")
 	}
 
-	out, errout, err := utils.Shellout(data.Language, utils.PathFileTemp(filename))
+	commandPath, workingDir, resolveErr := a.resolveExecutionTarget(data)
+	if resolveErr != nil {
+		log.Printf("resolve execution target failed: %v", resolveErr)
+		return &Data{Stdout: "Nothing", Stderr: "Unable to resolve executable"}, fmt.Errorf("unable to resolve executable: %w", resolveErr)
+	}
+
+	var execCfg *utils.ExecConfig
+	if workingDir != "" {
+		execCfg = &utils.ExecConfig{Dir: workingDir}
+	}
+
+	out, errout, err := utils.Shellout(commandPath, execCfg, utils.PathFileTemp(filename))
 	if data.Language == "go" {
-		out, errout, err = utils.Shellout(data.Language, args, utils.PathFileTemp(filename))
+		out, errout, err = utils.Shellout(commandPath, execCfg, args, utils.PathFileTemp(filename))
 	}
 
 	if err != nil {
 		log.Printf("error shell: %v\n", err)
 	}
 
-	// fmt.Println("--- stdout ---")
-	// fmt.Println(out)
-	// fmt.Println("--- stderr ---")
-	// fmt.Println(errout)
 	data.Stderr = errout
 	data.Stdout = out
 	return &data, nil
