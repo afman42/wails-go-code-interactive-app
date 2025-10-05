@@ -58,7 +58,7 @@ type Data struct {
 func (a *App) CheckFileExecutable(name []string) (all []string) {
 	for _, v := range name {
 		cmd := exec.Command("which", v)
-		err := cmd.Run()
+		_, err := cmd.Output()
 		if err == nil {
 			all = append(all, v)
 		}
@@ -123,10 +123,10 @@ func (a *App) RunFileExecutable(data Data) (*Data, error) {
 		log.Printf("error shell: %v\n", err)
 	}
 
-	fmt.Println("--- stdout ---")
-	fmt.Println(out)
-	fmt.Println("--- stderr ---")
-	fmt.Println(errout)
+	// fmt.Println("--- stdout ---")
+	// fmt.Println(out)
+	// fmt.Println("--- stderr ---")
+	// fmt.Println(errout)
 	data.Stderr = errout
 	data.Stdout = out
 	return &data, nil

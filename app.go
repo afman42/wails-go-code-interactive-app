@@ -72,7 +72,7 @@ func (a *App) CheckFileExecutable(name []string) (all []string) {
 }
 
 func (a *App) RunFileExecutable(data Data) (*Data, error) {
-	var args string = "-"
+	args := "-"
 	data.Txt = strings.TrimSpace(data.Txt)
 	data.Language = strings.TrimSpace(data.Language)
 	data.Tipe = strings.TrimSpace(data.Tipe)

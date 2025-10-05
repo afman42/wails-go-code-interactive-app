@@ -1,7 +1,7 @@
 <script lang="ts">
   import { CheckFileExecutable } from '../wailsjs/go/main/App.js'
   import { RunFileExecutable } from '../wailsjs/go/main/App.js'
-  import { main } from '../wailsjs/go/models.js'
+  import { main } from '../wailsjs/go/models'
   //Component
   import ToasterContainer from './component/ToasterContainer.svelte'
   import { onMount, onDestroy } from 'svelte'
@@ -67,9 +67,47 @@
   let editorValue = $state('')
   let prevLang = $state(langState.value)
   let prevType = $state(langState.type)
-  let allLang: string[] = $state([])
-  const init = async (arrayFile: string[]) =>
-    await CheckFileExecutable(arrayFile)
+  const loadStoredLangs = () => {
+    const raw = window.localStorage.getItem('allLang')
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (value): value is string => typeof value === 'string'
+        )
+      }
+    } catch {
+      return []
+    }
+    return []
+  }
+
+  let arrLang: string[] = $state(loadStoredLangs())
+
+  const persistLangs = (values: string[]) => {
+    arrLang = [...values]
+    window.localStorage.setItem('allLang', JSON.stringify(arrLang))
+  }
+
+  const init = async (arrayFile: string[]) => {
+    try {
+      const result = await CheckFileExecutable(arrayFile)
+      const filtered = result
+        .map((value) => value?.trim())
+        .filter(
+          (value): value is string =>
+            typeof value === 'string' && value.length > 0
+        )
+      const unique = [...new Set(filtered)]
+      if (unique.length > 0 && !unique.includes(langState.value)) {
+        langState.value = unique[0]
+      }
+      persistLangs(unique.length > 0 ? unique : arrLang)
+    } catch {
+      persistLangs(arrLang)
+    }
+  }
   // Custom autocompletion for PHP
   function phpCompletions(context: CompletionContext): CompletionResult | null {
     const word = context.matchBefore(/\w*/)
@@ -189,17 +227,10 @@
       ...lintKeymap
     ])
   ]
-  async function checkAllFileExecutable(arrayFile: string[]) {
-    await init(arrayFile).then((result: string[]) =>
-      result.forEach((v) => {
-        allLang.push(v)
-        if (!v.includes(langState.value)) langState.value = result[0]
-      })
-    )
-  }
   // Initialize editor on mount
   onMount(async () => {
-    await checkAllFileExecutable(['node', 'php', 'go'])
+    await init(['node', 'php', 'go'])
+    currentLang = languageConfigs[langState.value] || languageConfigs.node
     const initialState = EditorState.create({
       doc: langState.sampleDataLang[langState.type][langState.value] || '',
       extensions: [
@@ -249,7 +280,7 @@
     }
   })
   async function send() {
-    if (allLang.length == 0) {
+    if (arrLang.length == 0) {
       toast.warning('Something Went Wrong', 4000)
       return
     }
@@ -326,10 +357,10 @@
         onclick={send}
         type="button">Send</button
       >
-      <div class="flex gap-1">
-        <div class="flex gap-2 items-center">
-          {#each allLang as lang}
-            <label for={lang} class="gap-2">
+      <div class="flex gap-1 w-full">
+        <div class="flex gap-2 items-center w-full">
+          {#each arrLang as lang}
+            <label for={lang} class="flex items-center">
               <input
                 type="radio"
                 value={lang}
@@ -361,7 +392,7 @@
             />Simple Test Question
           </label>
           {#if disabled}
-            <b>--- Proses Code ---</b>
+            <b>--- Process Code ---</b>
           {/if}
         </div>
       </div>
@@ -370,16 +401,16 @@
 
   <div class="flex flex-col mx-4">
     <div class="flex mt-3 flex-col w-full">
-      {#if allLang.length == 0}
+      {#if arrLang.length == 0}
         <h3>Please Add Golang,Node JS,PHP Installation</h3>
         <button
           class="bg-blue-500 text-white w-full h-20"
           type="button"
           onclick={async (e) => {
             e.preventDefault()
-            await checkAllFileExecutable(['node', 'php', 'go'])
+            await init(['node', 'php', 'go'])
             toast.info(
-              `Installation executable ${allLang.length == 0 ? `none` : allLang.join(' , ')}`,
+              `Installation executable ${arrLang.length == 0 ? `none` : arrLang.join(' , ')}`,
               1000
             )
           }}>Restart</button

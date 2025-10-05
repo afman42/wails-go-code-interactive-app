@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"wails-go-desktop-code-interactive/utils"
 
 	"github.com/wailsapp/wails/v2"
@@ -18,28 +19,45 @@ import (
 var assets embed.FS
 
 func main() {
+	if runtime.GOOS == "linux" {
+		_ = os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+	}
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC)
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to determine working directory: %v", err)
+	}
+	log.Printf("starting application in %s", wd)
 
 	if _, err := os.Stat("./tmp"); err != nil {
 		if os.IsNotExist(err) {
+			log.Print("tmp directory missing, attempting creation")
 			if err := os.Mkdir("tmp", os.ModePerm); err != nil {
-				log.Fatal(err)
+				log.Fatalf("failed to create tmp directory: %v", err)
 			}
+			log.Print("tmp directory created successfully")
 		}
+	} else {
+		log.Print("tmp directory already present")
 	}
 	files, err := filepath.Glob(utils.PathFileTemp("*"))
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to discover tmp files: %v", err)
+	}
+	if len(files) > 0 {
+		log.Printf("removing %d stale tmp file(s)", len(files))
 	}
 	for _, f := range files {
 		if err := os.Remove(f); err != nil {
-			panic(err)
+			log.Fatalf("failed to remove tmp file %s: %v", f, err)
 		}
+		log.Printf("removed tmp file %s", f)
 	}
 	// Create an instance of the app structure
 	app := NewApp()
 
 	// Create application with options
-	err = wails.Run(&options.App{
+	config := &options.App{
 		Title:  "wails-go-dekstop-code-interactive",
 		Width:  1024,
 		Height: 500,
@@ -56,15 +74,25 @@ func main() {
 			app,
 		},
 		Linux: &linux.Options{
-			ProgramName: "wails-go-desktop-code-interactive",
+			ProgramName:      "wails-go-desktop-code-interactive",
+			WebviewGpuPolicy: linux.WebviewGpuPolicyNever,
 		},
 		Debug: options.Debug{
 			OpenInspectorOnStartup: true,
 		},
 		Windows: &windows.Options{},
-	})
+	}
+
+	log.Printf("launching Wails with title=%s size=%dx%d", config.Title, config.Width, config.Height)
+	log.Printf("single instance lock id=%s", config.SingleInstanceLock.UniqueId)
+
+	err = wails.Run(config)
 
 	if err != nil {
+		log.Printf("application exited with error: %v", err)
 		println("Error:", err.Error())
+		return
 	}
+
+	log.Print("application shut down gracefully")
 }
