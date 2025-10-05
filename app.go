@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"syscall"
 	"wails-go-desktop-code-interactive/utils"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
